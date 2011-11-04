@@ -1,0 +1,2 @@
+This code is designed to be used for the 2011/2012 Bowled Over! FTC competition.
+Right now, Teleop.c is the only file. This is used during the teleop mode of the competition.
