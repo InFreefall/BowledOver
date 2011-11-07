@@ -18,6 +18,7 @@
 int currentLiftPower = LIFT_POWER;
 
 bool buttonTurboPressed = false;
+bool soundKeyPressed = false;
 
 int armRaiseAngle = 90;
 int armOpenAngle = 90;
@@ -107,5 +108,12 @@ task main()
     getJoystickSettings(joystick);
     operateLift();
     operateWheels();
+    if (joy1Btn(10) && !soundKeyPressed && !bSoundActive)
+    {
+      soundKeyPressed = true;
+      PlaySoundFile("newgq.rso");
+    }
+    else if (!joy1Btn(10))
+      soundKeyPressed = false;
   }
 }
