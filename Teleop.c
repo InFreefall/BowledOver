@@ -3,6 +3,7 @@
 #pragma config(Hubs,  S4, HTServo,  none,     none,     none)
 #pragma config(Sensor, S1,     ,                    sensorI2CMuxController)
 #pragma config(Sensor, S2,     ,                    sensorI2CMuxController)
+#pragma config(Sensor, S3,     lightSensor,                    sensorLightActive)
 #pragma config(Sensor, S4,     ,                    sensorI2CMuxController)
 #pragma config(Motor,  mtr_S1_C1_1,     LiftMotor1,    tmotorNormal, openLoop)
 #pragma config(Motor,  mtr_S1_C1_2,     RightDrive,    tmotorNormal, openLoop, reversed)
@@ -16,8 +17,8 @@
 
 #define LIFT_POWER 20
 #define TURBO_LIFT_POWER 40
-#define ARM_RAISE_POWER 80.0
-#define ARM_LOWER_POWER 10.0
+#define ARM_RAISE_POWER 65.0
+#define ARM_LOWER_POWER 15.0
 
 #define USE_TURN_MODIFIERS
 
@@ -28,8 +29,8 @@ bool soundKeyPressed = false;
 
 void initializeRobot()
 {
-  servo[servo1] = 202;
-  servo[servo2] = 109;
+  servo[servo1] = 204;
+  servo[servo2] = 107;
   return;
 }
 
@@ -88,21 +89,21 @@ void operateArm()
   {
     motor[ArmRaise] = (int)((float)joystick.joy1_y1*ARM_LOWER_POWER/128.0);
   }
-  else
+  else if (joystick.joy1_y1 >= -10 && joystick.joy1_y1 <= 10)
     motor[ArmRaise] = 10;
 
-  if (joystick.joy1_y2 < -15)
+  if (joystick.joy1_y2 > 15)
   {
-    if (ServoValue[servo1] >= 202)
-      servo[servo1] = 202;
+    if (ServoValue[servo1] >= 204)
+      servo[servo1] = 204;
     else
       servo[servo1] = ServoValue[servo1] + 1;
-    if (ServoValue[servo2] <= 109)
-      servo[servo2] = 109;
+    if (ServoValue[servo2] <= 107)
+      servo[servo2] = 107;
     else
       servo[servo2] = ServoValue[servo2] - 1;
   }
-  if (joystick.joy1_y2 > 15)
+  if (joystick.joy1_y2 < -15)
   {
     if (ServoValue[servo1] <= 122)
       servo[servo1] = 122;
@@ -125,8 +126,6 @@ void operateWheels()
   int drivePower;
   int rotatePower = 0;
   int backWheelPower = 0;
-  float leftTurnMultiplier = 1;
-  float rightTurnMultiplier = 1;
 
   // Set power for left and right drive (currently identical)
   if (abs(joystick.joy2_y1) < 10)
@@ -143,16 +142,6 @@ void operateWheels()
     backWheelPower = -50;
   if (joy2Btn(7))
     backWheelPower = -100;
-
-  /*if (joystick.joy2_x1 > 10)
-  {
-    rightTurnMultiplier = 1.0 - (1.0/128.0*joystick.joy2_x1);
-  }
-  if (joystick.joy2_x1 < -10)
-  {
-    leftTurnMultiplier = 1.0 + (1.0 / 128.0 * joystick.joy2_x1);
-  }
-  writeDebugStreamLine("LTM:%f, RTM:%f, j:%d", leftTurnMultiplier, rightTurnMultiplier, joystick.joy2_x1);*/
 
   // If right joystick is moved left or right, override all other commands
   // Turn robot in place in the direction indicated by this joystick
