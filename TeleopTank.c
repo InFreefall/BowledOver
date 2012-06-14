@@ -1,8 +1,6 @@
 #pragma config(Hubs,  S1, HTMotor,  none,     none,     none)
 #pragma config(Hubs,  S2, HTServo,  HTMotor,  none,     none)
-#pragma config(Sensor, S1,     ,                    sensorI2CMuxController)
-#pragma config(Sensor, S2,     ,                    sensorI2CMuxController)
-#pragma config(Sensor, S3,     sTouch,              sensorTouch)
+#pragma config(Sensor, S3,     sSONAR,              sensorSONAR)
 #pragma config(Motor,  motorA,          ,              tmotorNormal, openLoop, encoder)
 #pragma config(Motor,  motorB,          ,              tmotorNormal, openLoop, encoder)
 #pragma config(Motor,  mtr_S1_C1_1,     rightArm,      tmotorNormal, openLoop, reversed)
@@ -23,11 +21,28 @@
 #define STROBE_DELAY 50
 
 int delay = 100;
-long lastWave = 0;
 long lastStrobe = 0;
-const int FLAG_WAVE_TIME = 750;
-bool flagZero = false;
 bool strobeOff = false;
+
+/*void pt(float freq, int time)
+{
+  PlayTone(freq, time);
+  wait10Msec(time);
+  wait10Msec(50);
+}
+
+task victory()
+{
+  pt(587.33,10); // D
+  pt(587.33,10);
+  pt(587.33,10);
+  pt(587.33,30);
+  pt(466.16,30);
+  pt(523.25,30);
+  pt(587.33,20);
+  pt(523.25,10);
+  pt(587.33,100);
+}*/
 
 void initializeRobot()
 {
@@ -56,28 +71,28 @@ void operateLift()
 {
   int rightArmPower = 0;
   int leftArmPower = 0;
-  if (joy1Btn(6))
+  if (joy2Btn(6))
   {
     rightArmPower = -25;
   }
-  if (joy1Btn(8))
+  if (joy2Btn(8))
   {
     rightArmPower = 25;
   }
-  if (joy1Btn(5))
+  if (joy2Btn(5))
   {
     leftArmPower = -25;
   }
-  if (joy1Btn(7))
+  if (joy2Btn(7))
   {
     leftArmPower = 25;
   }
-  if (joy1Btn(4))
+  if (joy2Btn(4))
   {
     leftArmPower = -25;
     rightArmPower = -25;
   }
-  if (joy1Btn(2))
+  if (joy2Btn(2))
   {
     leftArmPower = 25;
     rightArmPower = 25;
@@ -98,12 +113,12 @@ void operateLift()
   int leftWingValue = ServoValue[leftWing];
   int rightWingValue = ServoValue[rightWing];
 
-  if (joystick.joy1_TopHat == 2)
+  if (joystick.joy2_TopHat == 2)
   {
     leftWingValue -= 3;
     rightWingValue += 3;
   }
-  if (joystick.joy1_TopHat == 6)
+  if (joystick.joy2_TopHat == 6)
   {
     leftWingValue += 3;
     rightWingValue -= 3;
@@ -115,34 +130,31 @@ void operateLift()
 
 void operateBeep()
 {
-  if (SensorValue[sTouch] >= 1)
-    PlayImmediateTone(random(3000),delay/4);
-  if (joy1Btn(9))
+  if (joy2Btn(9))
   {
     PlayImmediateTone(random(3000),delay/4);
   }
-  if (joy1Btn(10) && !bSoundActive)
+  if (joy2Btn(10) && !bSoundActive)
   {
     PlaySoundFile("NOOOOOO.rso");
   }
+  if (joy1Btn(10) && !bSoundActive)
+  {
+    nVolume = 4;
+    PlaySoundFile("BeAMan.rso");
+  }
+  if (joy1Btn(9) && !bSoundActive)
+  {
+    PlaySoundFile("newgq.rso");
+  }
+  //if (joy2Btn(11))
+  //  StartTask(victory);
+  nxtDisplayCenteredTextLine(3,"NXTBAT:%d",externalBatteryAvg);
 }
 
 void waveFlag()
 {
-  if (joy1Btn(4))
-  {
-    servo[flag] = 0;
-    flagZero = true;
-  }
-  else if (nPgmTime - lastWave > FLAG_WAVE_TIME)
-  {
-    if (flagZero)
-      servo[flag] = 255;
-    else
-      servo[flag] = 0;
-    lastWave = nPgmTime;
-    flagZero = !flagZero;
-  }
+  servo[flag] = joystick.joy2_x2 + 128;
   if (nPgmTime - lastStrobe > STROBE_DELAY)
   {
     if (strobeOff)
