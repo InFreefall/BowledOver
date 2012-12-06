@@ -18,22 +18,24 @@
 bool flipped = false;
 int mid = 128;
 int diff = 30;
+bool victoryRunning = false;
 
 void pt(float freq, int time)
 {
   PlayTone(freq, time);
   wait10Msec(time);
-  wait1Msec(10);
+  wait1Msec(10);/*
   if (flipped)
     servo[flag] = mid - diff;
   else
     servo[flag] = mid + diff;
-  flipped = !flipped;
+  flipped = !flipped;*/
 }
 
 task victory()
 {
-  servo[flag] = mid;
+  victoryRunning = true;
+  //servo[flag] = mid;
   pt(587.33,10); // D
   pt(587.33,10);
   pt(587.33,10);
@@ -43,4 +45,5 @@ task victory()
   pt(587.33,20);
   pt(523.25,10);
   pt(587.33,100);
+  victoryRunning = false;
 }
