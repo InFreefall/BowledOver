@@ -3,13 +3,13 @@
 #pragma config(Sensor, S3,     ,               sensorI2CMuxController)
 #pragma config(Sensor, S4,     ,               sensorI2CMuxController)
 #pragma config(Motor,  mtr_S3_C1_1,     shoulder,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S3_C1_2,     elbow,         tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S3_C1_2,     elbow,         tmotorTetrix, openLoop, reversed)
 #pragma config(Motor,  mtr_S4_C1_1,     motorF,        tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S4_C1_2,     motorG,        tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S4_C2_1,     motorH,        tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S4_C2_2,     motorI,        tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C3_1,     motorJ,         tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C3_2,     wrist,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S4_C3_1,     motorJ,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S4_C3_2,     wrist,         tmotorTetrix, openLoop)
 #pragma config(Servo,  srvo_S4_C4_1,    servo1,               tServoNone)
 #pragma config(Servo,  srvo_S4_C4_2,    servo2,               tServoNone)
 #pragma config(Servo,  srvo_S4_C4_3,    servo3,               tServoNone)
@@ -34,14 +34,14 @@ task main()
 
 		setMotorPowersForXY();
 		if (joy1Btn(1))
-			targetX += .05;
+			moveToXY(targetX + .05, targetY);
 		else if (joy1Btn(3))
-			targetX -= .05;
+			moveToXY(targetX - .05, targetY);
 
 		if (joy1Btn(4))
-			targetY += .05;
+			moveToXY(targetX, targetY + .05);
 		else if (joy1Btn(2))
-			targetY -= .05;
+			moveToXY(targetX, targetY - .05);
 
 		if (joy1Btn(6) && !wristBtnPressed)
 		{
@@ -52,10 +52,13 @@ task main()
 			wristBtnPressed = false;
 
 		if (joystick.joy1_TopHat == 0)
-			targetY = H_TIER_3;
+			moveToXY(targetX, H_TIER_3);
 		else if (joystick.joy1_TopHat == 2)
-			targetY = H_TIER_2;
+			moveToXY(targetX, H_TIER_2);
 		else if (joystick.joy1_TopHat == 4)
-			targetY = H_TIER_1;
+			moveToXY(targetX, H_TIER_1);
+
+		if (joy1Btn(10) && !bSoundActive)
+			PlaySound(soundBeepBeep);
 	}
 }

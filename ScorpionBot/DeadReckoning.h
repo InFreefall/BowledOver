@@ -27,7 +27,7 @@ long lastUpdate = -1;
 
 void DR_init()
 {
-	position.x = 0;
+	/*position.x = 0;
 	position.y = 0;
 	velocity.x = 0;
 	velocity.y = 0;
@@ -47,7 +47,7 @@ void DR_init()
 	baseAcceleration.x /= NUMBER_CALIBRATION_READINGS;
 	baseAcceleration.y /= NUMBER_CALIBRATION_READINGS;
 
-	HTMCsetTarget(compass);
+	HTMCsetTarget(compass);*/
 }
 
 bool isOutlier(float value, float mean, float stdDev)

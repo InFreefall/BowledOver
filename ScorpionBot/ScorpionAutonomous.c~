@@ -1,0 +1,48 @@
+#pragma config(Sensor, S3,     accelerometer,        sensorI2CCustom)
+#pragma config(Sensor, S2, compass, sensorI2CCustom)
+
+#include "DeadReckoning.h"
+
+long min(long a, long b)
+{ return (a<b)?a:b; }
+
+// Decision Point - is the robot stuck on the corner of the plywood?
+long dpSOC_startTime = -1;
+bool dpStuckOnCorner()
+{
+	const float CERTAINTY_THRESHOLD = 0.8;
+	float certainty = 0.0;
+
+	const long dTimeStart = 4000;
+	const float dTimeScaling = .001;
+	const float dTimeMax = .6;
+
+	const float dThetaScaling = -.1;
+	const float dThetaMax = .3;
+
+	if (dpSOC_startTime == -1)
+		dpSOC_startTime = nPgmTime;
+
+	// Check time. If we haven't reached the next step in dTimeStart,
+	// We are more likely to be stuck on the corner.
+	long dTime = nPgmTime - dpSOC_startTime;
+	if (dTime > dTimeStart)
+	{
+		certainty += min(dTimeMax, (dTime-dTimeStart)*dTimeScaling);
+	}
+
+	// Check angle. If it is similar to the starting angle,
+	// We are more likely to be stuck on the corner.
+	float thetaInfluence = dThetaMax + dThetaScaling*abs(HTMCreadRelativeHeading(compass));
+	if (thetaInfluence > 0)
+		certainty += thetaInfluence;
+
+	return (certainty >= CERTAINTY_THRESHOLD);
+}
+
+task main()
+{
+	while (true)
+	{
+	}
+}

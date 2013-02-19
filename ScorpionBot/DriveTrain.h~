@@ -1,0 +1,43 @@
+// These are radians
+const int FORWARDS = PI;
+const int RIGHT = PI/2;
+const int BACKWARDS = 0;
+const int LEFT = -PI/2;
+
+const int R_FINGER_MIN = 165;
+const int R_FINGER_MAX = 255;
+const int L_FINGER_MIN = 90;
+const int L_FINGER_MAX = 0;
+
+// HTMC readings are in degrees. Yay!
+const int TURN_TOWARDS_BOARD = 45;
+
+const int DRIVE_FROM_CORNER_TIME = 2400;
+const int DISTANCE_FROM_CENTER_RACK = 70;
+
+void setVelocityVector(float magnitude, float theta)
+{
+  theta -= PI/4; // Make the arm be forwards
+  int xPower = magnitude * cos(theta);
+  int yPower = magnitude * sin(theta);
+  motor[motorWest] = yPower;
+  motor[motorEast] = yPower;
+  motor[motorNorth] = xPower;
+  motor[motorSouth] = xPower;
+}
+
+void rotateAtPower(int rotatePower)
+{
+  motor[motorWest] = rotatePower;
+  motor[motorEast] = -rotatePower;
+  motor[motorNorth] = rotatePower;
+  motor[motorSouth] = -rotatePower;
+}
+
+void stopMotors()
+{
+  motor[motorWest] = 0;
+  motor[motorEast] = 0;
+  motor[motorNorth] = 0;
+  motor[motorSouth] = 0;
+}

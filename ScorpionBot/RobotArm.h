@@ -2,13 +2,13 @@
 #pragma config(Hubs,  S4, HTMotor,  HTMotor,  HTMotor,  HTServo)
 #pragma config(Sensor, S3,     ,               sensorI2CMuxController)
 #pragma config(Sensor, S4,     ,               sensorI2CMuxController)
-#pragma config(Motor,  mtr_S3_C1_1,     shoulder,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S3_C1_2,     elbow,         tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C1_1,     motorF,        tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C1_2,     motorG,        tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C2_1,     motorH,        tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C2_2,     motorI,        tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S4_C3_1,     wrist,         tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S3_C1_1,     shoulder,      tmotorTetrix, PIDControl)
+#pragma config(Motor,  mtr_S3_C1_2,     elbow,         tmotorTetrix, PIDControl, reversed)
+#pragma config(Motor,  mtr_S4_C1_1,     motorNorth,    tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S4_C1_2,     motorEast,     tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S4_C2_1,     motorWest,     tmotorTetrix, openLoop, reversed)
+#pragma config(Motor,  mtr_S4_C2_2,     motorSouth,    tmotorTetrix, openLoop, reversed)
+#pragma config(Motor,  mtr_S4_C3_1,     wrist,         tmotorTetrix, PIDControl)
 #pragma config(Motor,  mtr_S4_C3_2,     motorK,        tmotorTetrix, openLoop)
 #pragma config(Servo,  srvo_S4_C4_1,    servo1,               tServoNone)
 #pragma config(Servo,  srvo_S4_C4_2,    servo2,               tServoNone)
@@ -31,20 +31,12 @@ bool gripperAt90 = false;
 float targetX = 17;
 float targetY = 16;
 
-int lastMotorEncoder = 0;
-long lastMilliseconds = 0;
-
-int lastMotorEncoderElbow = 0;
-long lastMillisecondsElbow = 0;
-
-const int ELBOW_POWER = 60;
-const int SHOULDER_POWER = 39;
-const int SHOULDER_POWER_MODIFIER = 35;
-const int WRIST_POWER = 40;
-
 const float H_TIER_1 = 18;
 const float H_TIER_2 = 32;
-const float H_TIER_3 = 42;
+const float H_TIER_3 = 46;
+
+const int sMOVING = 0;
+const int sHOLD = 1;
 
 // If an encoder is this close to its target, it is good enough
 // Marty /*and Michael*/, this one's for you
@@ -52,44 +44,28 @@ const int CLOSE_ENOUGH = 40;
 
 struct
 {
-	int power;
-	int gravityModifierPower;
-	float degreesPerEncoder;
-	float degreesAtZero;
-	int closeEnough;
+  int power;
+  int gravityModifierPower;
+  int holdPositionPower;
+  float degreesPerEncoder;
+  float degreesAtZero;
+  int closeEnough;
+  int lastEncoderValue;
+  int lastMilliseconds;
+  int state;
 } Joint;
 
 Joint jShoulder;
 Joint jElbow;
 Joint jWrist;
 
-// These equations were determined using
-// Experimental data and doing a linear
-// Regression. They assume the most compact
-// Starting position.
-float degreesForShoulder(int encoder)
+void moveToXY(float x, float y)
 {
-	return -.0834*encoder + 296.131;
-}
-
-float encoderForShoulder(float degrees)
-{
-	return (degrees - 296.131) / -.0834;
-}
-
-float degreesForElbow(int encoder)
-{
-	return -.0835*encoder + 5.219;
-}
-
-float encoderForElbow(float degrees)
-{
-	return (degrees - 5.219) / -.0835;
-}
-
-float encoderForWrist(float degrees)
-{
-	return (3.9267*degrees) - 82.7;
+	targetX = x;
+	targetY = y;
+	jShoulder.state = sMOVING;
+	jElbow.state = sMOVING;
+	jWrist.state = sMOVING;
 }
 
 float degreesToEncoder(Joint joint, float degrees)
@@ -117,23 +93,78 @@ void init()
 	nMotorEncoder[elbow] = 0;
 	nMotorEncoder[wrist] = 0;
 
-	jShoulder.power = 39;
+	jShoulder.power = 55;
 	jShoulder.gravityModifierPower = 35;
+	jShoulder.holdPositionPower = 6;
 	jShoulder.degreesPerEncoder = -.0834;
 	jShoulder.degreesAtZero = 296.131;
 	jShoulder.closeEnough = 40;
+	jShoulder.state = sMOVING;
 
-	jElbow.power = 60;
-	jElbow.gravityModifierPower = 10;
-	jElbow.degreesPerEncoder = -.0835;
-	jElbow.degreesAtZero = 5.219;
+	jElbow.power = -50;
+	jElbow.gravityModifierPower = 0;
+	jElbow.holdPositionPower = 0;
+	jElbow.degreesPerEncoder = .084;
+	jElbow.degreesAtZero = 8.65;
 	jElbow.closeEnough = 40;
+	jElbow.state = sMOVING;
 
-	jWrist.power = 40;
+	jWrist.power = 27;
 	jWrist.gravityModifierPower = 0;
-	jWrist.degreesPerEncoder = 1;
-	jWrist.degreesAtZero = 1;
-	jWrist.closeEnough = 30;
+	jWrist.holdPositionPower = 0;
+	jWrist.degreesPerEncoder = .1665;
+	jWrist.degreesAtZero = 21.643;
+	jWrist.closeEnough = 50;
+	jElbow.state = sMOVING;
+}
+
+int powerForJoint(Joint joint, int encoderValue, int targetEncoder)
+{
+  float angle = degreesToRadians(encoderToDegrees(joint, encoderValue));
+  float gravityMultipler = cos(angle);
+
+  if (joint.state == sHOLD)
+  {
+  	return 0;//gravityMultipler * joint.holdPositionPower;
+  }
+
+  int powerBoost;
+
+  if (abs(encoderValue - joint.lastEncoderValue) < joint.closeEnough &&
+      abs(encoderValue - targetEncoder) > joint.closeEnough)
+    {
+      if (nPgmTime - joint.lastMilliseconds > 250)
+				powerBoost = 15;
+    }
+  else if (abs(encoderValue - joint.lastEncoderValue) > joint.closeEnough/2 &&
+	   nPgmTime - joint.lastMilliseconds > 500)
+    {
+      joint.lastEncoderValue = encoderValue;
+      joint.lastMilliseconds = nPgmTime;
+    }
+
+  int motorDirectionCoefficient = ((encoderValue - targetEncoder) > 0 ?
+				   1 : -1);
+
+  float gravityPower = joint.gravityModifierPower *
+    gravityMultipler * -motorDirectionCoefficient;
+
+  if (joint == jShoulder)
+   	writeDebugStreamLine("sGr: %f, pB: %d, jP: %d", gravityPower, powerBoost, joint.power);
+
+  int power = motorDirectionCoefficient * (gravityPower + powerBoost + joint.power);
+
+  if (abs(encoderValue - targetEncoder) < joint.closeEnough*2)
+  {
+  	return power * 2.0 /3.0;
+  }
+  else if (abs(encoderValue - targetEncoder) < joint.closeEnough)
+  {
+  	joint.state = sHOLD;
+    return joint.holdPositionPower * gravityMultipler;
+  }
+  else
+    return power;
 }
 
 void setMotorPowersForXY()
@@ -152,9 +183,9 @@ void setMotorPowersForXY()
 	float angleA = asin( (a * sin(angleC) / c) );
 	float wristTargetAngle = angleC - PI + angleA + theta + (gripperAt90 ? 0 : PI/4);
 
-	int shoulderTarget = (int)encoderForShoulder((angleA + theta) * 180 / PI);
-	int elbowTarget = (int)encoderForElbow(angleC * 180 / PI);
-	int wristTarget = (int)encoderForWrist(wristTargetAngle * 180 / PI);
+	int shoulderTarget = (int)degreesToEncoder(jShoulder, (angleA + theta) * 180 / PI);
+	int elbowTarget = (int)degreesToEncoder(jElbow, angleC * 180 / PI);
+	int wristTarget = (int)degreesToEncoder(jWrist, wristTargetAngle * 180 / PI);
 
 	nxtDisplayTextLine(0,"theta: %f",theta);
 	nxtDisplayTextLine(1,"c: %f",c);
@@ -163,7 +194,7 @@ void setMotorPowersForXY()
 	nxtDisplayTextLine(5,"sT: %d", shoulderTarget);
 	nxtDisplayTextLine(6,"eT: %d", elbowTarget);
 
-	nxtDisplayTextLine(4,"shoulder: %f", degreesForShoulder(nMotorEncoder[shoulder]));
+	nxtDisplayTextLine(4,"shoulder: %f", encoderToDegrees(jShoulder,nMotorEncoder[shoulder]));
 
 	if (c > a+b)
 	{
@@ -174,46 +205,8 @@ void setMotorPowersForXY()
 		return;
 	}
 
-	float shoulderAngle = (degreesForShoulder(nMotorEncoder[shoulder]) - 90)*PI/180.0;
-	float multiplier = 0;
-	multiplier = cos(shoulderAngle);
-
-	int powerBoost = 0;
-
-	if (abs(nMotorEncoder[shoulder] - lastMotorEncoder) < CLOSE_ENOUGH && abs(nMotorEncoder[shoulder] - shoulderTarget) > CLOSE_ENOUGH)
-	{
-		if (nPgmTime - lastMilliseconds > 250)
-		{
-			powerBoost = 15;
-		}
-	}
-	else if (abs(nMotorEncoder[shoulder] - lastMotorEncoder) > CLOSE_ENOUGH/2 && nPgmTime-lastMilliseconds > 500)
-	{
-		lastMotorEncoder = nMotorEncoder[shoulder];
-		lastMilliseconds = nPgmTime;
-	}
-
-	int elbowPowerBoost = 0;
-
-	if (abs(nMotorEncoder[elbow] - lastMotorEncoderElbow) < CLOSE_ENOUGH && abs(nMotorEncoder[elbow] - elbowTarget) > CLOSE_ENOUGH)
-	{
-		if (nPgmTime - lastMillisecondsElbow > 250)
-		{
-			elbowPowerBoost = 15;
-		}
-	}
-	else if (abs(nMotorEncoder[elbow] - lastMotorEncoderElbow) > CLOSE_ENOUGH/2 && nPgmTime-lastMillisecondsElbow > 500)
-	{
-		lastMotorEncoderElbow = nMotorEncoder[elbow];
-		lastMillisecondsElbow = nPgmTime;
-	}
-
-	float shoulderPower = (SHOULDER_POWER_MODIFIER*multiplier*((nMotorEncoder[shoulder]-shoulderTarget)>0?1:-1)
-								   + SHOULDER_POWER + powerBoost)*coefficientForEncoder(nMotorEncoder[shoulder], shoulderTarget);
-
-	writeDebugStreamLine("%f",shoulderPower);
-
-	motor[elbow] = -ELBOW_POWER*coefficientForEncoder(nMotorEncoder[elbow], elbowTarget);
-	motor[shoulder] = shoulderPower;
-	motor[wrist] = -WRIST_POWER*coefficientForEncoder(nMotorEncoder[wrist], wristTarget);
+	motor[elbow] = powerForJoint(jElbow, nMotorEncoder[elbow], elbowTarget);
+	motor[shoulder] = powerForJoint(jShoulder, nMotorEncoder[shoulder], shoulderTarget);
+	//writeDebugStreamLine("wrist: %d",wPower);
+	motor[wrist] = powerForJoint(jWrist, nMotorEncoder[wrist], wristTarget);
 }
